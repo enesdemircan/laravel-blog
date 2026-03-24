@@ -4,7 +4,9 @@ namespace Ceniver\Blog\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 
 class SetupController extends Controller
 {
@@ -48,6 +50,11 @@ class SetupController extends Controller
             'BLOG_MASTER_URL'     => $masterUrl,
             'BLOG_MASTER_API_KEY' => $apiKey,
         ]);
+
+        // Blog tabloları yoksa migration'ları otomatik çalıştır
+        if (!Schema::hasTable('blog_categories')) {
+            Artisan::call('migrate', ['--force' => true]);
+        }
 
         $locale = config('blog.default_locale', 'tr');
         return view('blog::blog.setup-success', ['locale' => $locale]);

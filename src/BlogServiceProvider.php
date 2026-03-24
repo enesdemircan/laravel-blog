@@ -42,7 +42,12 @@ class BlogServiceProvider extends ServiceProvider
             $seo = app(SeoService::class);
             $locale = request()->route('locale') ?? $siteConfig->defaultLocale();
 
-            $categories = BlogCategory::where('is_active', true)->orderBy('sort_order')->get();
+            // Migration çalışmamış olabilir — tablo yoksa boş collection döndür
+            try {
+                $categories = BlogCategory::where('is_active', true)->orderBy('sort_order')->get();
+            } catch (\Exception $e) {
+                $categories = collect();
+            }
 
             $view->with([
                 'seo'              => $seo,
