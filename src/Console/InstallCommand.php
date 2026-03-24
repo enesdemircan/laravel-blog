@@ -2,7 +2,11 @@
 
 namespace Ceniver\Blog\Console;
 
+use Ceniver\Blog\Models\BlogArticle;
+use Ceniver\Blog\Models\BlogCategory;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class InstallCommand extends Command
 {
@@ -58,7 +62,33 @@ class InstallCommand extends Command
             $this->call('migrate');
         }
 
-        // 7. Laravel default robots.txt varsa kaldır (paketin route'u kullanılır)
+        // 7. Eski site verilerini temizle
+        if (Schema::hasTable('blog_categories')) {
+            $oldArticles = BlogArticle::count();
+            $oldCategories = BlogCategory::count();
+            if ($oldArticles > 0 || $oldCategories > 0) {
+                if ($this->confirm("Veritabanında {$oldArticles} makale ve {$oldCategories} kategori bulundu. Eski verileri temizlemek ister misiniz?", true)) {
+                    BlogArticle::query()->delete();
+                    BlogCategory::query()->delete();
+                    $this->info('  Eski veriler temizlendi.');
+                }
+            }
+        }
+
+        // Eski config JSON'ları temizle
+        foreach (['seo_config.json', 'site_config.json', 'page_seo.json', 'redirects.json'] as $file) {
+            if (Storage::exists($file)) {
+                Storage::delete($file);
+            }
+        }
+
+        // Eski sitemap dosyalarını temizle
+        foreach (glob(public_path('sitemap*.xml')) as $sitemapFile) {
+            @unlink($sitemapFile);
+        }
+        $this->info('  Eski config ve sitemap dosyaları temizlendi.');
+
+        // 8. Laravel default robots.txt varsa kaldır (paketin route'u kullanılır)
         $defaultRobots = public_path('robots.txt');
         if (file_exists($defaultRobots)) {
             $content = file_get_contents($defaultRobots);

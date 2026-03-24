@@ -2,11 +2,14 @@
 
 namespace Ceniver\Blog\Http\Controllers;
 
+use Ceniver\Blog\Models\BlogArticle;
+use Ceniver\Blog\Models\BlogCategory;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class SetupController extends Controller
 {
@@ -56,7 +59,25 @@ class SetupController extends Controller
             Artisan::call('migrate', ['--force' => true]);
         }
 
-        // Laravel default robots.txt varsa kaldır (paketin AI-optimized robots.txt kullanılır)
+        // Eski site verileri varsa temizle (farklı siteye bağlanıyorsa)
+        if (Schema::hasTable('blog_categories')) {
+            BlogArticle::query()->delete();
+            BlogCategory::query()->delete();
+        }
+
+        // Eski config JSON'ları temizle
+        foreach (['seo_config.json', 'site_config.json', 'page_seo.json', 'redirects.json'] as $file) {
+            if (Storage::exists($file)) {
+                Storage::delete($file);
+            }
+        }
+
+        // Eski sitemap dosyalarını temizle
+        foreach (glob(public_path('sitemap*.xml')) as $sitemapFile) {
+            @unlink($sitemapFile);
+        }
+
+        // Laravel default robots.txt varsa kaldır
         $defaultRobots = public_path('robots.txt');
         if (file_exists($defaultRobots) && strlen(file_get_contents($defaultRobots)) < 50) {
             @unlink($defaultRobots);
