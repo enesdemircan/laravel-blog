@@ -8,27 +8,79 @@ use Illuminate\Support\Facades\Log;
 
 class SitemapService
 {
-    private const CHUNK_SIZE = 5000;
+    private const MAX_URLS_PER_FILE = 5000;
+
+    private SeoService $seo;
+    private SiteConfigService $siteConfig;
+
+    public function __construct(SeoService $seo, SiteConfigService $siteConfig)
+    {
+        $this->seo = $seo;
+        $this->siteConfig = $siteConfig;
+    }
 
     public function generate(): bool
     {
         try {
             $baseUrl = rtrim(config('app.url'), '/');
-            $locales = app(SiteConfigService::class)->supportedLocales();
+            $locales = $this->siteConfig->supportedLocales();
             $lastmod = now()->toAtomString();
 
-            $urls = [];
+            // Ayarları seo_config.json'dan oku (master'dan gelir), yoksa config fallback
+            $homePriority  = $this->seo->get('sitemap_homepage_priority', '1.0');
+            $homeFrequency = $this->seo->get('sitemap_homepage_frequency', 'daily');
+            $artPriority   = $this->seo->get('sitemap_article_priority', '0.8');
+            $artFrequency  = $this->seo->get('sitemap_article_frequency', 'weekly');
+            $catPriority   = $this->seo->get('sitemap_category_priority', '0.6');
+            $catFrequency  = $this->seo->get('sitemap_category_frequency', 'monthly');
 
-            // Config'den ek URL'ler (ana sayfa, özel sayfalar vs.)
-            $customUrls = config('blog.sitemap_urls', []);
-            foreach ($customUrls as $custom) {
+            // ─── 1. Sabit sayfalar (homepage + custom) ───
+            $pageUrls = [];
+
+            // Ana sayfa
+            $pageUrls[] = [
+                'loc'        => $baseUrl . '/',
+                'changefreq' => (string) $homeFrequency,
+                'priority'   => (string) $homePriority,
+                'lastmod'    => $lastmod,
+            ];
+
+            // Master'dan gelen özel URL'ler (seo_config.json içinde)
+            $masterCustom = $this->seo->get('sitemap_custom_urls', []);
+            if (is_array($masterCustom)) {
+                foreach ($masterCustom as $custom) {
+                    $loc = $custom['loc'] ?? null;
+                    if (!$loc) continue;
+
+                    if (str_contains($loc, '{locale}')) {
+                        foreach ($locales as $locale) {
+                            $pageUrls[] = [
+                                'loc'        => $baseUrl . '/' . ltrim(str_replace('{locale}', $locale, $loc), '/'),
+                                'changefreq' => $custom['changefreq'] ?? 'monthly',
+                                'priority'   => $custom['priority'] ?? '0.5',
+                                'lastmod'    => $lastmod,
+                            ];
+                        }
+                    } else {
+                        $pageUrls[] = [
+                            'loc'        => $baseUrl . '/' . ltrim($loc, '/'),
+                            'changefreq' => $custom['changefreq'] ?? 'monthly',
+                            'priority'   => $custom['priority'] ?? '0.5',
+                            'lastmod'    => $lastmod,
+                        ];
+                    }
+                }
+            }
+
+            // Config'deki ek URL'ler (geliştirici tarafından eklenen)
+            $configUrls = config('blog.sitemap_urls', []);
+            foreach ($configUrls as $custom) {
                 $loc = $custom['loc'] ?? null;
-                if (!$loc) continue;
+                if (!$loc || $loc === '/') continue; // homepage zaten eklendi
 
                 if (str_contains($loc, '{locale}')) {
-                    // {locale} varsa her dil için genişlet
                     foreach ($locales as $locale) {
-                        $urls[] = [
+                        $pageUrls[] = [
                             'loc'        => $baseUrl . '/' . ltrim(str_replace('{locale}', $locale, $loc), '/'),
                             'changefreq' => $custom['changefreq'] ?? 'monthly',
                             'priority'   => $custom['priority'] ?? '0.5',
@@ -36,7 +88,7 @@ class SitemapService
                         ];
                     }
                 } else {
-                    $urls[] = [
+                    $pageUrls[] = [
                         'loc'        => $baseUrl . '/' . ltrim($loc, '/'),
                         'changefreq' => $custom['changefreq'] ?? 'monthly',
                         'priority'   => $custom['priority'] ?? '0.5',
@@ -45,9 +97,10 @@ class SitemapService
                 }
             }
 
-            // Ana blog sayfaları (her dil için)
+            // ─── 2. Blog sayfaları ───
+            $blogUrls = [];
             foreach ($locales as $locale) {
-                $urls[] = [
+                $blogUrls[] = [
                     'loc'        => "{$baseUrl}/{$locale}/blog",
                     'changefreq' => 'daily',
                     'priority'   => '0.8',
@@ -55,69 +108,114 @@ class SitemapService
                 ];
             }
 
-            // Kategori sayfaları
+            // ─── 3. Kategori sayfaları ───
+            $categoryUrls = [];
             BlogCategory::where('is_active', true)
                 ->get()
-                ->each(function ($category) use (&$urls, $baseUrl, $locales, $lastmod) {
+                ->each(function ($category) use (&$categoryUrls, $baseUrl, $locales, $lastmod, $catPriority, $catFrequency) {
                     foreach ($locales as $locale) {
                         $slug = $category->translations[$locale]['slug'] ?? null;
-                        if (! $slug) continue;
-                        $urls[] = [
+                        if (!$slug) continue;
+                        $categoryUrls[] = [
                             'loc'        => "{$baseUrl}/{$locale}/blog/kategori/{$slug}",
-                            'changefreq' => 'weekly',
-                            'priority'   => '0.6',
+                            'changefreq' => (string) $catFrequency,
+                            'priority'   => (string) $catPriority,
                             'lastmod'    => $lastmod,
                         ];
                     }
                 });
 
-            // Makale sayfaları
+            // ─── 4. Makale sayfaları ───
+            $articleUrls = [];
             BlogArticle::with('translations')
-                ->chunkById(500, function ($articles) use (&$urls, $baseUrl, $locales, $lastmod) {
+                ->chunkById(500, function ($articles) use (&$articleUrls, $baseUrl, $locales, $lastmod, $artPriority, $artFrequency) {
                     foreach ($articles as $article) {
                         foreach ($article->translations as $translation) {
-                            if (! in_array($translation->locale, $locales)) continue;
+                            if (!in_array($translation->locale, $locales)) continue;
                             $articleLastmod = ($article->updated_at ?? $article->published_at)?->toAtomString() ?? $lastmod;
-                            $urls[] = [
+                            $articleUrls[] = [
                                 'loc'        => "{$baseUrl}/{$translation->locale}/blog/{$translation->slug}",
-                                'changefreq' => 'monthly',
-                                'priority'   => '0.9',
+                                'changefreq' => (string) $artFrequency,
+                                'priority'   => (string) $artPriority,
                                 'lastmod'    => $articleLastmod,
                             ];
                         }
                     }
                 });
 
-            if (count($urls) <= self::CHUNK_SIZE) {
-                file_put_contents(public_path('sitemap.xml'), $this->buildXml($urls));
-                Log::info('Sitemap oluşturuldu. ' . count($urls) . ' URL yazıldı.');
+            // ─── Dosya oluşturma stratejisi ───
+            $totalUrls = count($pageUrls) + count($blogUrls) + count($categoryUrls) + count($articleUrls);
+
+            if ($totalUrls <= self::MAX_URLS_PER_FILE) {
+                // Tek sitemap.xml yeterli
+                $allUrls = array_merge($pageUrls, $blogUrls, $categoryUrls, $articleUrls);
+                file_put_contents(public_path('sitemap.xml'), $this->buildUrlsetXml($allUrls));
+                // Eski parça dosyaları varsa temizle
+                $this->cleanOldSitemapFiles();
             } else {
-                $this->buildIndexedSitemap($urls, $baseUrl);
-                Log::info('Sitemap index oluşturuldu. ' . count($urls) . ' URL, ' . ceil(count($urls) / self::CHUNK_SIZE) . ' parça.');
+                // Sitemap index — her tip ayrı dosya, büyük tipler chunk'lanır
+                $sitemaps = [];
+
+                // Sayfalar
+                if (!empty($pageUrls)) {
+                    $sitemaps = array_merge($sitemaps, $this->writeChunkedSitemap('sitemap-pages', $pageUrls, $baseUrl));
+                }
+
+                // Blog + Kategoriler
+                $blogCatUrls = array_merge($blogUrls, $categoryUrls);
+                if (!empty($blogCatUrls)) {
+                    $sitemaps = array_merge($sitemaps, $this->writeChunkedSitemap('sitemap-categories', $blogCatUrls, $baseUrl));
+                }
+
+                // Makaleler (en büyük — chunk'lanır)
+                if (!empty($articleUrls)) {
+                    $sitemaps = array_merge($sitemaps, $this->writeChunkedSitemap('sitemap-articles', $articleUrls, $baseUrl));
+                }
+
+                file_put_contents(public_path('sitemap.xml'), $this->buildSitemapIndexXml($sitemaps));
             }
 
+            Log::info("Sitemap oluşturuldu: {$totalUrls} URL ({$this->formatCount($pageUrls, $categoryUrls, $articleUrls)})");
             return true;
+
         } catch (\Throwable $e) {
             Log::error('Sitemap oluşturma hatası: ' . $e->getMessage());
             return false;
         }
     }
 
-    private function buildIndexedSitemap(array $urls, string $baseUrl): void
+    /**
+     * Büyük URL listesini chunk'layıp dosyalara yazar.
+     * @return array Oluşturulan sitemap URL'leri (index için)
+     */
+    private function writeChunkedSitemap(string $prefix, array $urls, string $baseUrl): array
     {
-        $chunks    = array_chunk($urls, self::CHUNK_SIZE);
-        $indexUrls = [];
+        $sitemaps = [];
+        $chunks = array_chunk($urls, self::MAX_URLS_PER_FILE);
 
         foreach ($chunks as $i => $chunk) {
-            $filename  = "sitemap-{$i}.xml";
-            $indexUrls[] = "{$baseUrl}/{$filename}";
-            file_put_contents(public_path($filename), $this->buildXml($chunk));
+            $filename = count($chunks) === 1 ? "{$prefix}.xml" : "{$prefix}-{$i}.xml";
+            file_put_contents(public_path($filename), $this->buildUrlsetXml($chunk));
+            $sitemaps[] = [
+                'loc'     => "{$baseUrl}/{$filename}",
+                'lastmod' => now()->toAtomString(),
+            ];
         }
 
-        file_put_contents(public_path('sitemap.xml'), $this->buildSitemapIndex($indexUrls));
+        return $sitemaps;
     }
 
-    private function buildXml(array $urls): string
+    private function cleanOldSitemapFiles(): void
+    {
+        $patterns = ['sitemap-pages*.xml', 'sitemap-categories*.xml', 'sitemap-articles*.xml'];
+        foreach ($patterns as $pattern) {
+            foreach (glob(public_path($pattern)) as $file) {
+                @unlink($file);
+            }
+        }
+    }
+
+    private function buildUrlsetXml(array $urls): string
     {
         $lines   = [];
         $lines[] = '<?xml version="1.0" encoding="UTF-8"?>';
@@ -137,22 +235,26 @@ class SitemapService
         return implode("\n", $lines) . "\n";
     }
 
-    private function buildSitemapIndex(array $sitemapUrls): string
+    private function buildSitemapIndexXml(array $sitemaps): string
     {
-        $lastmod = now()->toAtomString();
         $lines   = [];
         $lines[] = '<?xml version="1.0" encoding="UTF-8"?>';
         $lines[] = '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
 
-        foreach ($sitemapUrls as $url) {
+        foreach ($sitemaps as $sitemap) {
             $lines[] = '  <sitemap>';
-            $lines[] = '    <loc>' . htmlspecialchars($url, ENT_XML1) . '</loc>';
-            $lines[] = '    <lastmod>' . $lastmod . '</lastmod>';
+            $lines[] = '    <loc>' . htmlspecialchars($sitemap['loc'], ENT_XML1) . '</loc>';
+            $lines[] = '    <lastmod>' . $sitemap['lastmod'] . '</lastmod>';
             $lines[] = '  </sitemap>';
         }
 
         $lines[] = '</sitemapindex>';
 
         return implode("\n", $lines) . "\n";
+    }
+
+    private function formatCount(array $pages, array $categories, array $articles): string
+    {
+        return count($pages) . ' sayfa, ' . count($categories) . ' kategori, ' . count($articles) . ' makale';
     }
 }

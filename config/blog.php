@@ -41,7 +41,9 @@ return [
     |   ['loc' => '/pricing',       'changefreq' => 'weekly', 'priority' => '0.7'],
     */
     'sitemap_urls' => [
-        ['loc' => '/', 'changefreq' => 'daily', 'priority' => '1.0'],
+        // Geliştirici buraya ekstra sayfalar ekleyebilir.
+        // Master panelden eklenen URL'ler seo_config.json üzerinden gelir.
+        // Örnek: ['loc' => '/pricing', 'changefreq' => 'weekly', 'priority' => '0.7'],
     ],
 
     /*
