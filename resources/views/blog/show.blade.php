@@ -49,10 +49,6 @@
                 <span itemprop="name">{{ $seo->author_name }}</span>
             </span>
             @endif
-            @if($translation->is_ai_generated)
-            <span>&middot;</span>
-            <span class="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full font-medium">AI</span>
-            @endif
         </div>
     </header>
 

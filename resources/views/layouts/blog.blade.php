@@ -49,10 +49,17 @@
                         <div id="blogLangDropdown" class="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg py-1 hidden min-w-[130px] z-50 shadow-lg">
                             @foreach($supportedLocales as $loc)
                                 @php
-                                    $path = request()->path();
-                                    $newPath = preg_replace('#^' . preg_quote($currentLocale, '#') . '(/|$)#', $loc . '$1', $path);
+                                    // Makale sayfasındaysa o dilin slug'ını kullan
+                                    if (isset($otherTranslations) && $otherTranslations->count()) {
+                                        $alt = $otherTranslations->firstWhere('locale', $loc);
+                                        $langUrl = $alt ? route('blog.show', [$loc, $alt->slug]) : route('blog.index', $loc);
+                                    } else {
+                                        $path = request()->path();
+                                        $newPath = preg_replace('#^' . preg_quote($currentLocale, '#') . '(/|$)#', $loc . '$1', $path);
+                                        $langUrl = url('/' . $newPath);
+                                    }
                                 @endphp
-                                <a href="{{ url('/' . $newPath) }}"
+                                <a href="{{ $langUrl }}"
                                    class="block px-4 py-2 text-sm {{ $loc === $currentLocale ? 'text-blue-600 bg-blue-50 font-semibold' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }} transition-colors uppercase">{{ $loc }}</a>
                             @endforeach
                         </div>
