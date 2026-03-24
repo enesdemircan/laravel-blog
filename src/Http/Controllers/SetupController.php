@@ -56,6 +56,12 @@ class SetupController extends Controller
             Artisan::call('migrate', ['--force' => true]);
         }
 
+        // Laravel default robots.txt varsa kaldır (paketin AI-optimized robots.txt kullanılır)
+        $defaultRobots = public_path('robots.txt');
+        if (file_exists($defaultRobots) && strlen(file_get_contents($defaultRobots)) < 50) {
+            @unlink($defaultRobots);
+        }
+
         $locale = config('blog.default_locale', 'tr');
         return view('blog::blog.setup-success', ['locale' => $locale]);
     }

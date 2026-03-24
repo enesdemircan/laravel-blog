@@ -145,7 +145,7 @@ class HeadBuilder
             $html .= '    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag(\'js\',new Date());gtag(\'config\',\'' . $ga4 . '\');</script>' . "\n";
         }
 
-        // Schema JSON-LD
+        // Schema JSON-LD — Sayfa bazlı
         if ($schemaJson) {
             $schemas = json_decode($schemaJson, true);
             if ($schemas) {
@@ -158,11 +158,125 @@ class HeadBuilder
             }
         }
 
+        // Schema JSON-LD — Organization (her sayfada)
+        $orgSchema = $this->buildOrganizationSchema($siteName, $canonical);
+        if ($orgSchema) {
+            $html .= '    <script type="application/ld+json">' . json_encode($orgSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . '</script>' . "\n";
+        }
+
+        // Schema JSON-LD — BreadcrumbList
+        $breadcrumb = $overrides['breadcrumb'] ?? $this->buildBreadcrumb($pageType, $locale, $vars, $siteName);
+        if ($breadcrumb) {
+            $html .= '    <script type="application/ld+json">' . json_encode($breadcrumb, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . '</script>' . "\n";
+        }
+
         // Extra raw HTML
         if ($overrides['extra'] ?? null) {
             $html .= '    ' . $overrides['extra'] . "\n";
         }
 
         return $html;
+    }
+
+    private function buildOrganizationSchema(string $siteName, string $url): ?array
+    {
+        $seo = $this->seo;
+        $baseUrl = rtrim(config('app.url'), '/');
+
+        // Master'dan gelen schema_organization varsa onu kullan
+        $custom = $seo->get('schema_organization');
+        if ($custom) {
+            $parsed = is_string($custom) ? json_decode($custom, true) : $custom;
+            if ($parsed && isset($parsed['@type'])) {
+                return $parsed;
+            }
+        }
+
+        // Otomatik Organization schema
+        $schema = [
+            '@context' => 'https://schema.org',
+            '@type'    => 'Organization',
+            'name'     => $siteName,
+            'url'      => $baseUrl,
+        ];
+
+        if ($seo->get('og_default_image')) {
+            $schema['logo'] = asset('storage/' . $seo->get('og_default_image'));
+        }
+
+        $sameAs = array_filter([
+            $seo->get('facebook_url'),
+            $seo->get('instagram_url'),
+            $seo->get('linkedin_url'),
+            $seo->get('youtube_url'),
+            $seo->twitterHandle() ? 'https://twitter.com/' . ltrim($seo->twitterHandle(), '@') : null,
+        ]);
+
+        if (!empty($sameAs)) {
+            $schema['sameAs'] = array_values($sameAs);
+        }
+
+        return $schema;
+    }
+
+    private function buildBreadcrumb(string $pageType, string $locale, array $vars, string $siteName): ?array
+    {
+        $baseUrl = rtrim(config('app.url'), '/');
+        $items = [];
+
+        // Her sayfada Ana Sayfa
+        $items[] = ['name' => 'Ana Sayfa', 'url' => $baseUrl . '/'];
+
+        switch ($pageType) {
+            case 'blog_index':
+                $items[] = ['name' => 'Blog', 'url' => "{$baseUrl}/{$locale}/blog"];
+                break;
+
+            case 'blog_category':
+                $items[] = ['name' => 'Blog', 'url' => "{$baseUrl}/{$locale}/blog"];
+                if (!empty($vars['category'])) {
+                    $items[] = ['name' => $vars['category'], 'url' => null];
+                }
+                break;
+
+            case 'blog_article':
+                $items[] = ['name' => 'Blog', 'url' => "{$baseUrl}/{$locale}/blog"];
+                if (!empty($vars['category'])) {
+                    $catSlug = $vars['category_slug'] ?? null;
+                    $catUrl = $catSlug ? "{$baseUrl}/{$locale}/blog/kategori/{$catSlug}" : null;
+                    $items[] = ['name' => $vars['category'], 'url' => $catUrl];
+                }
+                if (!empty($vars['title'])) {
+                    $items[] = ['name' => $vars['title'], 'url' => null];
+                }
+                break;
+
+            case 'homepage':
+            default:
+                return null; // Ana sayfada breadcrumb gereksiz
+        }
+
+        if (count($items) <= 1) {
+            return null;
+        }
+
+        $listItems = [];
+        foreach ($items as $i => $item) {
+            $entry = [
+                '@type'    => 'ListItem',
+                'position' => $i + 1,
+                'name'     => $item['name'],
+            ];
+            if ($item['url']) {
+                $entry['item'] = $item['url'];
+            }
+            $listItems[] = $entry;
+        }
+
+        return [
+            '@context'        => 'https://schema.org',
+            '@type'           => 'BreadcrumbList',
+            'itemListElement' => $listItems,
+        ];
     }
 }

@@ -58,7 +58,17 @@ class InstallCommand extends Command
             $this->call('migrate');
         }
 
-        // 7. Storage link
+        // 7. Laravel default robots.txt varsa kaldır (paketin route'u kullanılır)
+        $defaultRobots = public_path('robots.txt');
+        if (file_exists($defaultRobots)) {
+            $content = file_get_contents($defaultRobots);
+            if (str_contains($content, 'User-agent: *') && str_contains($content, 'Disallow:') && strlen($content) < 50) {
+                unlink($defaultRobots);
+                $this->info('  Laravel default robots.txt kaldırıldı (paket AI-optimized robots.txt sağlar).');
+            }
+        }
+
+        // 8. Storage link
         if (!file_exists(public_path('storage'))) {
             $this->info('  Storage link oluşturuluyor...');
             $this->call('storage:link');
