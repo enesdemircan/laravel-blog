@@ -26,7 +26,7 @@
                 {{-- Navigation --}}
                 <nav class="hidden md:flex items-center gap-6">
                     <a href="{{ route('blog.index', $currentLocale) }}"
-                       class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Ana Sayfa</a>
+                       class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">{{ __('blog::blog.home') }}</a>
                     @foreach($navCategories as $cat)
                         @php $catTrans = $cat->translations[$currentLocale] ?? null; @endphp
                         @if($catTrans)
@@ -41,7 +41,11 @@
                     @if(count($supportedLocales) > 1)
                     <div class="flex items-center gap-1">
                         @foreach($supportedLocales as $loc)
-                            <a href="{{ url('/' . $loc . '/' . ltrim(str_replace('/' . $currentLocale, '', request()->path()), '/')) }}"
+                            @php
+                                $path = request()->path();
+                                $newPath = preg_replace('#^' . preg_quote($currentLocale, '#') . '(/|$)#', $loc . '$1', $path);
+                            @endphp
+                            <a href="{{ url('/' . $newPath) }}"
                                class="px-2 py-1 text-xs font-medium rounded uppercase {{ $loc === $currentLocale ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900' }}">{{ $loc }}</a>
                         @endforeach
                     </div>
@@ -56,7 +60,7 @@
 
             {{-- Mobile Nav --}}
             <div id="mobileMenu" class="hidden md:hidden pb-4 border-t border-gray-100 pt-3">
-                <a href="{{ route('blog.index', $currentLocale) }}" class="block py-2 text-sm text-gray-700">Ana Sayfa</a>
+                <a href="{{ route('blog.index', $currentLocale) }}" class="block py-2 text-sm text-gray-700">{{ __('blog::blog.home') }}</a>
                 @foreach($navCategories as $cat)
                     @php $catTrans = $cat->translations[$currentLocale] ?? null; @endphp
                     @if($catTrans)

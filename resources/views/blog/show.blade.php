@@ -13,7 +13,7 @@
         <ol class="flex items-center gap-1" itemscope itemtype="https://schema.org/BreadcrumbList">
             <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
                 <a href="{{ route('blog.index', $locale) }}" itemprop="item" class="hover:text-gray-900">
-                    <span itemprop="name">Blog</span>
+                    <span itemprop="name">{{ __('blog::blog.blog') }}</span>
                 </a>
                 <meta itemprop="position" content="1">
             </li>
@@ -74,7 +74,7 @@
     {{-- Language alternatives --}}
     @if($otherTranslations->count() > 1)
     <div class="mt-12 pt-6 border-t border-gray-100">
-        <p class="text-sm text-gray-500 mb-2">Bu makale diğer dillerde de mevcut:</p>
+        <p class="text-sm text-gray-500 mb-2">{{ __('blog::blog.available_in_other_languages') }}</p>
         <div class="flex gap-2">
             @foreach($otherTranslations as $alt)
                 @if($alt->locale !== $locale)

@@ -5,7 +5,7 @@
 
     {{-- Breadcrumb --}}
     <nav class="text-sm text-gray-500 mb-6">
-        <a href="{{ route('blog.index', $locale) }}" class="hover:text-gray-900">Blog</a>
+        <a href="{{ route('blog.index', $locale) }}" class="hover:text-gray-900">{{ __('blog::blog.blog') }}</a>
         <span class="mx-2">/</span>
         <span class="text-gray-900 font-medium">{{ $catName }}</span>
     </nav>
@@ -44,7 +44,7 @@
     </div>
     @else
     <div class="text-center py-20 text-gray-400">
-        <p class="text-lg">Bu kategoride henüz içerik yok.</p>
+        <p class="text-lg">{{ __('blog::blog.no_content_category') }}</p>
     </div>
     @endif
 </div>

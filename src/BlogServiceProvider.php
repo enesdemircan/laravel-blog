@@ -9,6 +9,7 @@ use Ceniver\Blog\Services\HeadBuilder;
 use Ceniver\Blog\Services\PageSeoService;
 use Ceniver\Blog\Services\SeoService;
 use Ceniver\Blog\Services\SiteConfigService;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -36,11 +37,17 @@ class BlogServiceProvider extends ServiceProvider
         // Views
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'blog');
 
+        // Translations
+        $this->loadTranslationsFrom(__DIR__ . '/../resources/lang', 'blog');
+
         // View Composer
         View::composer(['blog::layouts.blog', 'blog::blog.*'], function ($view) {
             $siteConfig = app(SiteConfigService::class);
             $seo = app(SeoService::class);
             $locale = request()->route('locale') ?? $siteConfig->defaultLocale();
+
+            // Set application locale based on route parameter
+            App::setLocale($locale);
 
             // Migration çalışmamış olabilir — tablo yoksa boş collection döndür
             try {
@@ -79,6 +86,10 @@ class BlogServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__ . '/../database/migrations' => database_path('migrations'),
             ], 'blog-migrations');
+
+            $this->publishes([
+                __DIR__ . '/../resources/lang' => $this->app->langPath('vendor/blog'),
+            ], 'blog-lang');
         }
     }
 }
