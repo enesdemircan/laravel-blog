@@ -26,13 +26,14 @@ class SitemapService
             $locales = $this->siteConfig->supportedLocales();
             $lastmod = now()->toAtomString();
 
-            // Ayarları seo_config.json'dan oku (master'dan gelir), yoksa config fallback
-            $homePriority  = $this->seo->get('sitemap_homepage_priority', '1.0');
-            $homeFrequency = $this->seo->get('sitemap_homepage_frequency', 'daily');
-            $artPriority   = $this->seo->get('sitemap_article_priority', '0.8');
-            $artFrequency  = $this->seo->get('sitemap_article_frequency', 'weekly');
-            $catPriority   = $this->seo->get('sitemap_category_priority', '0.6');
-            $catFrequency  = $this->seo->get('sitemap_category_frequency', 'monthly');
+            // Ayarları seo_config.json'dan oku (master'dan gelir), yoksa config/blog.php fallback
+            $defaults = config('blog.sitemap', []);
+            $homePriority  = $this->seo->get('sitemap_homepage_priority',  $defaults['homepage_priority']  ?? '1.0');
+            $homeFrequency = $this->seo->get('sitemap_homepage_frequency', $defaults['homepage_frequency'] ?? 'daily');
+            $artPriority   = $this->seo->get('sitemap_article_priority',   $defaults['article_priority']   ?? '0.8');
+            $artFrequency  = $this->seo->get('sitemap_article_frequency',  $defaults['article_frequency']  ?? 'weekly');
+            $catPriority   = $this->seo->get('sitemap_category_priority',  $defaults['category_priority']  ?? '0.6');
+            $catFrequency  = $this->seo->get('sitemap_category_frequency', $defaults['category_frequency'] ?? 'monthly');
 
             // ─── 1. Sabit sayfalar (homepage + custom) ───
             $pageUrls = [];
@@ -44,33 +45,6 @@ class SitemapService
                 'priority'   => (string) $homePriority,
                 'lastmod'    => $lastmod,
             ];
-
-            // Master'dan gelen özel URL'ler (seo_config.json içinde)
-            $masterCustom = $this->seo->get('sitemap_custom_urls', []);
-            if (is_array($masterCustom)) {
-                foreach ($masterCustom as $custom) {
-                    $loc = $custom['loc'] ?? null;
-                    if (!$loc) continue;
-
-                    if (str_contains($loc, '{locale}')) {
-                        foreach ($locales as $locale) {
-                            $pageUrls[] = [
-                                'loc'        => $baseUrl . '/' . ltrim(str_replace('{locale}', $locale, $loc), '/'),
-                                'changefreq' => $custom['changefreq'] ?? 'monthly',
-                                'priority'   => $custom['priority'] ?? '0.5',
-                                'lastmod'    => $lastmod,
-                            ];
-                        }
-                    } else {
-                        $pageUrls[] = [
-                            'loc'        => $baseUrl . '/' . ltrim($loc, '/'),
-                            'changefreq' => $custom['changefreq'] ?? 'monthly',
-                            'priority'   => $custom['priority'] ?? '0.5',
-                            'lastmod'    => $lastmod,
-                        ];
-                    }
-                }
-            }
 
             // Config'deki ek URL'ler (geliştirici tarafından eklenen)
             $configUrls = config('blog.sitemap_urls', []);

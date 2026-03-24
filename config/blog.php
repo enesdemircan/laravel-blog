@@ -29,22 +29,32 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Sitemap — Ek URL'ler
+    | Sitemap Defaults
+    |--------------------------------------------------------------------------
+    | Master panel'den ayar gelmediğinde bu default'lar kullanılır.
+    | Master'dan push geldiğinde seo_config.json üzerinden override edilir.
+    */
+    'sitemap' => [
+        'homepage_priority'  => '1.0',
+        'homepage_frequency' => 'daily',
+        'article_priority'   => '0.8',
+        'article_frequency'  => 'weekly',
+        'category_priority'  => '0.6',
+        'category_frequency' => 'monthly',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sitemap — Ek URL'ler (Geliştirici)
     |--------------------------------------------------------------------------
     | Blog dışındaki sayfaları sitemap'e dahil etmek için buraya ekleyin.
-    | Her URL: 'loc' (zorunlu), 'changefreq', 'priority' içerebilir.
     | {locale} placeholder'ı desteklenen tüm diller için otomatik genişler.
     |
     | Örnek:
-    |   ['loc' => '/',              'changefreq' => 'daily',  'priority' => '1.0'],
-    |   ['loc' => '/{locale}/about','changefreq' => 'monthly','priority' => '0.5'],
-    |   ['loc' => '/pricing',       'changefreq' => 'weekly', 'priority' => '0.7'],
+    |   ['loc' => '/{locale}/about', 'changefreq' => 'monthly', 'priority' => '0.5'],
+    |   ['loc' => '/pricing',        'changefreq' => 'weekly',  'priority' => '0.7'],
     */
-    'sitemap_urls' => [
-        // Geliştirici buraya ekstra sayfalar ekleyebilir.
-        // Master panelden eklenen URL'ler seo_config.json üzerinden gelir.
-        // Örnek: ['loc' => '/pricing', 'changefreq' => 'weekly', 'priority' => '0.7'],
-    ],
+    'sitemap_urls' => [],
 
     /*
     |--------------------------------------------------------------------------
