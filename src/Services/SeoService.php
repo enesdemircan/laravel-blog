@@ -48,17 +48,17 @@ class SeoService
 
     public function ga4Id(): ?string
     {
-        return $this->data['ga4_id'] ?: null;
+        return !empty($this->data['ga4_id']) ? $this->data['ga4_id'] : null;
     }
 
     public function gscVerification(): ?string
     {
-        return $this->data['gsc_verification'] ?: null;
+        return !empty($this->data['gsc_verification']) ? $this->data['gsc_verification'] : null;
     }
 
     public function bingVerification(): ?string
     {
-        return $this->data['bing_verification'] ?: null;
+        return !empty($this->data['bing_verification']) ? $this->data['bing_verification'] : null;
     }
 
     public function twitterHandle(): ?string
@@ -86,7 +86,7 @@ class SeoService
 
     public function robotsTxt(): ?string
     {
-        return $this->data['robots_txt'] ?: null;
+        return !empty($this->data['robots_txt']) ? $this->data['robots_txt'] : null;
     }
 
     public function toArray(): array
