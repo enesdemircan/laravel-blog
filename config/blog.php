@@ -29,6 +29,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Sitemap — Ek URL'ler
+    |--------------------------------------------------------------------------
+    | Blog dışındaki sayfaları sitemap'e dahil etmek için buraya ekleyin.
+    | Her URL: 'loc' (zorunlu), 'changefreq', 'priority' içerebilir.
+    | {locale} placeholder'ı desteklenen tüm diller için otomatik genişler.
+    |
+    | Örnek:
+    |   ['loc' => '/',              'changefreq' => 'daily',  'priority' => '1.0'],
+    |   ['loc' => '/{locale}/about','changefreq' => 'monthly','priority' => '0.5'],
+    |   ['loc' => '/pricing',       'changefreq' => 'weekly', 'priority' => '0.7'],
+    */
+    'sitemap_urls' => [
+        ['loc' => '/', 'changefreq' => 'daily', 'priority' => '1.0'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Page Definitions (for master panel SEO templates)
     |--------------------------------------------------------------------------
     */

@@ -19,6 +19,32 @@ class SitemapService
 
             $urls = [];
 
+            // Config'den ek URL'ler (ana sayfa, özel sayfalar vs.)
+            $customUrls = config('blog.sitemap_urls', []);
+            foreach ($customUrls as $custom) {
+                $loc = $custom['loc'] ?? null;
+                if (!$loc) continue;
+
+                if (str_contains($loc, '{locale}')) {
+                    // {locale} varsa her dil için genişlet
+                    foreach ($locales as $locale) {
+                        $urls[] = [
+                            'loc'        => $baseUrl . '/' . ltrim(str_replace('{locale}', $locale, $loc), '/'),
+                            'changefreq' => $custom['changefreq'] ?? 'monthly',
+                            'priority'   => $custom['priority'] ?? '0.5',
+                            'lastmod'    => $lastmod,
+                        ];
+                    }
+                } else {
+                    $urls[] = [
+                        'loc'        => $baseUrl . '/' . ltrim($loc, '/'),
+                        'changefreq' => $custom['changefreq'] ?? 'monthly',
+                        'priority'   => $custom['priority'] ?? '0.5',
+                        'lastmod'    => $lastmod,
+                    ];
+                }
+            }
+
             // Ana blog sayfaları (her dil için)
             foreach ($locales as $locale) {
                 $urls[] = [
